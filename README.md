@@ -95,10 +95,6 @@ Roar2Rest provides a structured and automated mobile solution.
 
 ## 🚀 Installation & Setup
 
-Clone the repository:
-
-git clone https://github.com/yourusername/roar2rest.git
-
 Navigate to project folder:
 
 cd roar2rest
@@ -114,20 +110,6 @@ cordova build android
 Run the application:
 
 cordova run android
-
----
-
-## 📂 Project Structure
-
-roar2rest/
-│── www/
-│   ├── index.html
-│   ├── css/
-│   ├── js/
-│── platforms/
-│── plugins/
-│── config.xml
-│── README.md
 
 ---
 
