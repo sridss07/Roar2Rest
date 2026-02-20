@@ -136,7 +136,9 @@ cordova run android
 ## 👤 Author
 
 Sridhar R
+
 Full Stack Developer | Data Analyst Enthusiast  
+
 GitHub: https://github.com/sridss07 
 
 ---
