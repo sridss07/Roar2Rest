@@ -1,0 +1,2497 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Roar2Rest - Noise Violation Monitoring</title>
+    
+    <!-- External CDN Libraries -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js"></script>
+    
+    <style id="app-style">
+        :root {
+            --primary-color: #FFD700;
+            --secondary-color: #FFA500;
+            --accent-color: #FF4500;
+            --bg-light: #FFFAF0;
+            --bg-glass: rgba(255, 255, 255, 0.25);
+            --text-dark: #333;
+            --error-color: #FF3333;
+            --success-color: #33CC66;
+        }
+        
+        body {
+            font-family: 'Nunito', sans-serif;
+            background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%);
+            min-height: 100vh;
+            margin: 0;
+            padding: 0;
+            overflow-x: hidden;
+            color: var(--text-dark);
+        }
+        
+        .glass-card {
+            background: rgba(255, 255, 255, 0.25);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border-radius: 15px;
+            border: 1px solid rgba(255, 215, 0, 0.3);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+            transition: all 0.3s ease;
+        }
+        
+        .glass-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 12px 32px rgba(0, 0, 0, 0.15);
+            border: 1px solid rgba(255, 215, 0, 0.5);
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: var(--text-dark);
+            font-weight: bold;
+            border-radius: 25px;
+            padding: 10px 25px;
+            border: none;
+            box-shadow: 0 4px 15px rgba(255, 215, 0, 0.3);
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 18px rgba(255, 215, 0, 0.4);
+        }
+        
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.7);
+            color: var(--text-dark);
+            font-weight: bold;
+            border-radius: 25px;
+            padding: 8px 20px;
+            border: 1px solid rgba(255, 215, 0, 0.3);
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.9);
+            border: 1px solid rgba(255, 215, 0, 0.5);
+        }
+        
+        .login-container {
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: url('https://cdn.pixabay.com/photo/2017/09/09/18/25/living-room-2732939_1280.jpg') center/cover;
+            position: relative;
+        }
+        
+        .login-container::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, rgba(255, 215, 0, 0.7), rgba(255, 165, 0, 0.7));
+            z-index: 0;
+        }
+        
+        .login-form {
+            width: 450px;
+            z-index: 1;
+            animation: fadeIn 1s ease-out;
+        }
+        
+        .form-floating {
+            position: relative;
+            margin-bottom: 20px;
+        }
+        
+        .form-floating input {
+            width: 100%;
+            padding: 15px;
+            border: 1px solid rgba(255, 215, 0, 0.3);
+            border-radius: 10px;
+            background: rgba(255, 255, 255, 0.7);
+            transition: all 0.3s;
+        }
+        
+        .form-floating label {
+            position: absolute;
+            top: 15px;
+            left: 15px;
+            transition: all 0.3s;
+            pointer-events: none;
+            color: #666;
+        }
+        
+        .form-floating input:focus,
+        .form-floating input:not(:placeholder-shown) {
+            border: 1px solid var(--primary-color);
+            background: rgba(255, 255, 255, 0.9);
+        }
+        
+        .form-floating input:focus + label,
+        .form-floating input:not(:placeholder-shown) + label {
+            transform: translateY(-25px) scale(0.8);
+            color: var(--primary-color);
+            font-weight: bold;
+        }
+        
+        .input-error {
+            border-color: var(--error-color) !important;
+        }
+        
+        .error-message {
+            color: var(--error-color);
+            font-size: 0.9rem;
+            margin-top: 5px;
+            display: none;
+        }
+        
+        /* Animation */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+        
+        /* Map and Dashboard */
+        #map {
+            width: 100%;
+            height: 100vh;
+            z-index: 1;
+        }
+        
+        .dashboard {
+            display: none;
+            height: 100vh;
+            overflow: hidden;
+        }
+        
+        .sidebar {
+            height: 100vh;
+            overflow-y: auto;
+            background: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(10px);
+            border-right: 1px solid rgba(255, 215, 0, 0.3);
+            padding: 20px;
+        }
+        
+        .sidebar-card {
+            margin-bottom: 15px;
+            cursor: pointer;
+        }
+        
+        .sidebar-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-weight: bold;
+            padding: 10px;
+        }
+        
+        .sidebar-card-body {
+            padding: 15px;
+            display: none;
+        }
+        
+        /* Alert and Modal */
+        .alert {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 15px 25px;
+            border-radius: 10px;
+            z-index: 1000;
+            animation: slideIn 0.5s forwards, fadeOut 0.5s 3s forwards;
+            max-width: 350px;
+        }
+        
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        
+        @keyframes fadeOut {
+            from { opacity: 1; }
+            to { opacity: 0; visibility: hidden; }
+        }
+        
+        .alert-danger {
+            background: rgba(255, 51, 51, 0.9);
+            color: white;
+            box-shadow: 0 5px 15px rgba(255, 51, 51, 0.4);
+        }
+        
+        .alert-success {
+            background: rgba(51, 204, 102, 0.9);
+            color: white;
+            box-shadow: 0 5px 15px rgba(51, 204, 102, 0.4);
+        }
+        
+        .alert-warning {
+            background: rgba(255, 165, 0, 0.9);
+            color: white;
+            box-shadow: 0 5px 15px rgba(255, 165, 0, 0.4);
+        }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .modal-content {
+            width: 90%;
+            max-width: 500px;
+            animation: zoomIn 0.3s;
+        }
+        
+        @keyframes zoomIn {
+            from { transform: scale(0.9); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
+        }
+        
+        .close-btn {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            font-size: 24px;
+            cursor: pointer;
+            color: var(--text-dark);
+            transition: all 0.3s;
+        }
+        
+        .close-btn:hover {
+            color: var(--accent-color);
+            transform: scale(1.1);
+        }
+        
+        /* Receipt */
+        .receipt {
+            background: #fff;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            position: relative;
+        }
+        
+        .receipt:before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 10px;
+            background: repeating-linear-gradient(45deg, var(--primary-color), var(--primary-color) 10px, transparent 10px, transparent 20px);
+            border-radius: 10px 10px 0 0;
+        }
+        
+        .receipt-header {
+            text-align: center;
+            padding-bottom: 15px;
+            border-bottom: 1px dashed #ddd;
+            margin-bottom: 15px;
+        }
+        
+        .receipt-body {
+            margin-bottom: 15px;
+        }
+        
+        .receipt-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+        }
+        
+        .receipt-footer {
+            text-align: center;
+            font-size: 0.9rem;
+            color: #777;
+            padding-top: 15px;
+            border-top: 1px dashed #ddd;
+        }
+        
+        /* Payment Methods */
+        .payment-methods {
+            display: flex;
+            justify-content: space-around;
+            margin: 20px 0;
+        }
+        
+        .payment-method {
+            text-align: center;
+            cursor: pointer;
+            padding: 15px;
+            border-radius: 10px;
+            transition: all 0.3s;
+        }
+        
+        .payment-method:hover {
+            background: rgba(255, 255, 255, 0.5);
+            transform: translateY(-5px);
+        }
+        
+        .payment-method i {
+            font-size: 2rem;
+            margin-bottom: 10px;
+            color: var(--secondary-color);
+        }
+        
+        /* Noise Monitor */
+        .db-level {
+            height: 100px;
+            background: linear-gradient(to right, #33cc66, #ffcc00, #ff3333);
+            border-radius: 5px;
+            position: relative;
+            margin: 20px 0;
+        }
+        
+        .db-marker {
+            position: absolute;
+            width: 3px;
+            height: 100%;
+            background: #000;
+            top: 0;
+            transition: left 0.3s;
+        }
+        
+        .db-value {
+            position: absolute;
+            bottom: -25px;
+            transform: translateX(-50%);
+            font-weight: bold;
+        }
+        
+        /* Tables */
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        .data-table th, .data-table td {
+            padding: 12px 15px;
+            text-align: left;
+        }
+        
+        .data-table thead tr {
+            background: rgba(255, 215, 0, 0.2);
+            border-bottom: 2px solid var(--primary-color);
+        }
+        
+        .data-table tbody tr {
+            border-bottom: 1px solid rgba(255, 215, 0, 0.2);
+        }
+        
+        .data-table tbody tr:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+        
+        /* Tabs */
+        .tabs {
+            display: flex;
+            margin-bottom: 20px;
+            border-bottom: 2px solid rgba(255, 215, 0, 0.3);
+        }
+        
+        .tab {
+            padding: 10px 20px;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            margin-bottom: -2px;
+            transition: all 0.3s;
+        }
+        
+        .tab.active {
+            border-bottom: 2px solid var(--primary-color);
+            font-weight: bold;
+            color: var(--primary-color);
+        }
+        
+        .tab-content {
+            display: none;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        /* Animations for vehicles on map */
+        @keyframes carMovement {
+            0% { transform: translate(0, 0) rotate(0deg); }
+            25% { transform: translate(10px, 5px) rotate(5deg); }
+            50% { transform: translate(0, 10px) rotate(0deg); }
+            75% { transform: translate(-10px, 5px) rotate(-5deg); }
+            100% { transform: translate(0, 0) rotate(0deg); }
+        }
+        
+        .car-icon {
+            animation: carMovement 3s infinite ease-in-out;
+        }
+        
+        /* Violation Alert */
+        .violation-alert {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 1000;
+            width: 90%;
+            max-width: 500px;
+            display: none;
+        }
+        
+        .violation-alert .glass-card {
+            border: 2px solid var(--error-color);
+            animation: pulse 1s infinite;
+        }
+        
+        /* Alternate Route Display */
+        .route-option {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 10px;
+            padding: 10px;
+            border-radius: 10px;
+            background: rgba(255, 255, 255, 0.5);
+            transition: all 0.3s;
+            cursor: pointer;
+        }
+        
+        .route-option:hover {
+            background: rgba(255, 255, 255, 0.8);
+            transform: scale(1.02);
+        }
+        
+        .route-option.selected {
+            border: 2px solid var(--primary-color);
+        }
+        
+        .route-color {
+            width: 15px;
+            height: 15px;
+            border-radius: 50%;
+        }
+    </style>
+</head>
+<body>
+    <!-- Login Section -->
+    <div id="login-section" class="login-container">
+        <div class="login-form glass-card">
+            <div class="text-center mb-6">
+                <h1 class="text-4xl font-bold mb-2" style="color: var(--text-dark);">Roar2Rest</h1>
+                <p class="text-lg">Noise Monitoring System</p>
+            </div>
+            
+            <div class="tabs mb-6">
+                <div class="tab active" data-tab="driver-login">Driver</div>
+                <div class="tab" data-tab="police-login">Police</div>
+                <div class="tab" data-tab="public-login">Public User</div>
+            </div>
+            
+            <!-- Driver Login Form -->
+            <div id="driver-login" class="tab-content active">
+                <form id="driver-login-form">
+                    <div class="form-floating">
+                        <input type="text" id="driver-username" placeholder=" " autocomplete="off">
+                        <label for="driver-username">Username</label>
+                    </div>
+                    <div class="form-floating">
+                        <input type="password" id="driver-password" placeholder=" " autocomplete="off">
+                        <label for="driver-password">Password</label>
+                    </div>
+                    <div class="error-message" id="driver-login-error">Invalid username or password</div>
+                    <div class="mt-6">
+                        <button type="submit" class="btn-primary w-full py-3">Login</button>
+                    </div>
+                    <div class="mt-4 text-center">
+                        <a href="javascript:void(0)" class="register-link" data-register="driver">Register as Driver</a>
+                    </div>
+                </form>
+            </div>
+            
+            <!-- Police Login Form -->
+            <div id="police-login" class="tab-content">
+                <form id="police-login-form">
+                    <div class="form-floating">
+                        <input type="text" id="police-username" placeholder=" " autocomplete="off">
+                        <label for="police-username">Badge ID</label>
+                    </div>
+                    <div class="form-floating">
+                        <input type="password" id="police-password" placeholder=" " autocomplete="off">
+                        <label for="police-password">Password</label>
+                    </div>
+                    <div class="error-message" id="police-login-error">Invalid badge ID or password</div>
+                    <div class="mt-6">
+                        <button type="submit" class="btn-primary w-full py-3">Login</button>
+                    </div>
+                    <div class="mt-4 text-center">
+                        <a href="javascript:void(0)" class="register-link" data-register="police">Register as Police</a>
+                    </div>
+                </form>
+            </div>
+            
+            <!-- Public Login Form -->
+            <div id="public-login" class="tab-content">
+                <form id="public-login-form">
+                    <div class="form-floating">
+                        <input type="text" id="public-username" placeholder=" " autocomplete="off">
+                        <label for="public-username">Username</label>
+                    </div>
+                    <div class="form-floating">
+                        <input type="password" id="public-password" placeholder=" " autocomplete="off">
+                        <label for="public-password">Password</label>
+                    </div>
+                    <div class="error-message" id="public-login-error">Invalid username or password</div>
+                    <div class="mt-6">
+                        <button type="submit" class="btn-primary w-full py-3">Login</button>
+                    </div>
+                    <div class="mt-4 text-center">
+                        <a href="javascript:void(0)" class="register-link" data-register="public">Register as Public User</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Registration Modal -->
+    <div id="registration-modal" class="modal">
+        <div class="modal-content glass-card">
+            <span class="close-btn">&times;</span>
+            <h2 class="text-2xl font-bold mb-4 text-center">Register New Account</h2>
+            
+            <form id="registration-form">
+                <input type="hidden" id="reg-type" value="">
+                
+                <div class="form-floating mb-4">
+                    <input type="text" id="reg-fullname" placeholder=" " required>
+                    <label for="reg-fullname">Full Name</label>
+                </div>
+                
+                <div class="form-floating mb-4">
+                    <input type="text" id="reg-username" placeholder=" " required>
+                    <label for="reg-username">Username</label>
+                </div>
+                
+                <div class="form-floating mb-4">
+                    <input type="password" id="reg-password" placeholder=" " required>
+                    <label for="reg-password">Password</label>
+                </div>
+                
+                <div class="form-floating mb-4">
+                    <input type="tel" id="reg-phone" placeholder=" " required>
+                    <label for="reg-phone">Phone Number</label>
+                </div>
+                
+                <div id="driver-specific-fields" style="display: none;">
+                    <div class="form-floating mb-4">
+                        <input type="text" id="reg-vehicle-number" placeholder=" ">
+                        <label for="reg-vehicle-number">Vehicle Number</label>
+                    </div>
+                    
+                    <div class="form-floating mb-4">
+                        <input type="text" id="reg-vehicle-model" placeholder=" ">
+                        <label for="reg-vehicle-model">Vehicle Model</label>
+                    </div>
+                    
+                    <div class="form-floating mb-4">
+                        <input type="date" id="reg-insurance-expiry" placeholder=" ">
+                        <label for="reg-insurance-expiry">Insurance Expiry Date</label>
+                    </div>
+                </div>
+                
+                <div id="police-specific-fields" style="display: none;">
+                    <div class="form-floating mb-4">
+                        <input type="text" id="reg-badge-id" placeholder=" ">
+                        <label for="reg-badge-id">Badge ID</label>
+                    </div>
+                    
+                    <div class="form-floating mb-4">
+                        <input type="text" id="reg-station" placeholder=" ">
+                        <label for="reg-station">Police Station</label>
+                    </div>
+                </div>
+                
+                <div class="mt-6">
+                    <button type="submit" class="btn-primary w-full py-3">Register</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Driver Dashboard -->
+    <div id="driver-dashboard" class="dashboard">
+        <div class="flex h-full">
+            <div class="sidebar w-1/4">
+                <div class="text-center mb-6">
+                    <h2 class="text-2xl font-bold">Roar2Rest</h2>
+                    <p class="text-sm" id="driver-welcome">Welcome, Driver</p>
+                </div>
+                
+                <!-- Sidebar Cards -->
+                <div class="sidebar-card glass-card">
+                    <div class="sidebar-card-header">
+                        <span><i class="fas fa-money-bill-wave mr-2"></i> Pending Fines</span>
+                        <i class="fas fa-chevron-down"></i>
+                    </div>
+                    <div class="sidebar-card-body">
+                        <div id="pending-fines-list">
+                            <p class="text-center">No pending fines</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="sidebar-card glass-card">
+                    <div class="sidebar-card-header">
+                        <span><i class="fas fa-history mr-2"></i> Payment History</span>
+                        <i class="fas fa-chevron-down"></i>
+                    </div>
+                    <div class="sidebar-card-body">
+                        <div id="payment-history-list">
+                            <p class="text-center">No payment history</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="sidebar-card glass-card">
+                    <div class="sidebar-card-header">
+                        <span><i class="fas fa-car mr-2"></i> Vehicle Details</span>
+                        <i class="fas fa-chevron-down"></i>
+                    </div>
+                    <div class="sidebar-card-body">
+                        <div id="vehicle-details">
+                            <p><strong>Vehicle Number:</strong> <span id="vehicle-number">-</span></p>
+                            <p><strong>Model:</strong> <span id="vehicle-model">-</span></p>
+                            <p><strong>Insurance Expiry:</strong> <span id="insurance-expiry">-</span></p>
+                            <p><strong>Fuel Level:</strong> <span id="fuel-level">75%</span></p>
+                            <div class="w-full bg-gray-200 rounded-full h-2.5 mt-2">
+                                <div class="bg-yellow-500 h-2.5 rounded-full" style="width: 75%"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="sidebar-card glass-card">
+                    <div class="sidebar-card-header">
+                        <span><i class="fas fa-volume-up mr-2"></i> Noise Monitor</span>
+                        <i class="fas fa-chevron-down"></i>
+                    </div>
+                    <div class="sidebar-card-body">
+                        <p class="mb-2">Current Noise Level:</p>
+                        <div class="db-level">
+                            <div class="db-marker" style="left: 20%"></div>
+                            <span class="db-value" style="left: 20%">45 dB</span>
+                        </div>
+                        <button id="start-noise-monitor" class="btn-secondary w-full mt-4">
+                            <i class="fas fa-microphone mr-2"></i> Start Monitoring
+                        </button>
+                        <div class="mt-3">
+                            <canvas id="noise-chart"></canvas>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="sidebar-card glass-card">
+                    <div class="sidebar-card-header">
+                        <span><i class="fas fa-ambulance mr-2"></i> Emergency</span>
+                        <i class="fas fa-chevron-down"></i>
+                    </div>
+                    <div class="sidebar-card-body">
+                        <button id="call-ambulance" class="btn-secondary w-full mb-3">
+                            <i class="fas fa-ambulance mr-2"></i> Call Ambulance
+                        </button>
+                        <button id="call-mechanic" class="btn-secondary w-full">
+                            <i class="fas fa-wrench mr-2"></i> Call Mechanic
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="mt-6 text-center">
+                    <button id="driver-logout" class="btn-primary">
+                        <i class="fas fa-sign-out-alt mr-2"></i> Logout
+                    </button>
+                </div>
+            </div>
+            
+            <div class="w-3/4 relative">
+                <div id="map"></div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Police Dashboard -->
+    <div id="police-dashboard" class="dashboard">
+        <div class="flex h-full">
+            <div class="sidebar w-1/4">
+                <div class="text-center mb-6">
+                    <h2 class="text-2xl font-bold">Roar2Rest</h2>
+                    <p class="text-sm" id="police-welcome">Welcome, Officer</p>
+                </div>
+                
+                <div class="tabs">
+                    <div class="tab active" data-police-tab="violations">Violations</div>
+                    <div class="tab" data-police-tab="complaints">Public Complaints</div>
+                </div>
+                
+                <div id="police-logout-container" class="mt-6 text-center">
+                    <button id="police-logout" class="btn-primary">
+                        <i class="fas fa-sign-out-alt mr-2"></i> Logout
+                    </button>
+                </div>
+            </div>
+            
+            <div class="w-3/4 p-6">
+                <!-- Violations Tab Content -->
+                <div id="violations-tab" class="police-tab-content active">
+                    <h2 class="text-2xl font-bold mb-4">Unpaid Violations</h2>
+                    
+                    <div class="glass-card">
+                        <div class="overflow-x-auto">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>Driver</th>
+                                        <th>Vehicle</th>
+                                        <th>Violation Date</th>
+                                        <th>Location</th>
+                                        <th>Fine Amount</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="violations-table-body">
+                                    <tr>
+                                        <td colspan="6" class="text-center py-4">No unpaid violations found</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Public Complaints Tab Content -->
+                <div id="complaints-tab" class="police-tab-content" style="display:none;">
+                    <h2 class="text-2xl font-bold mb-4">Public Complaints</h2>
+                    
+                    <div class="glass-card">
+                        <div class="overflow-x-auto">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>Date</th>
+                                        <th>Complainant</th>
+                                        <th>Bus Route</th>
+                                        <th>Issue</th>
+                                        <th>Status</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="complaints-table-body">
+                                    <tr>
+                                        <td colspan="6" class="text-center py-4">No complaints found</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Public User Dashboard -->
+    <div id="public-dashboard" class="dashboard">
+        <div class="flex h-full">
+            <div class="sidebar w-1/4">
+                <div class="text-center mb-6">
+                    <h2 class="text-2xl font-bold">Roar2Rest</h2>
+                    <p class="text-sm" id="public-welcome">Welcome, User</p>
+                </div>
+                
+                <div class="tabs">
+                    <div class="tab active" data-public-tab="file-complaint">File Complaint</div>
+                    <div class="tab" data-public-tab="my-complaints">My Complaints</div>
+                </div>
+                
+                <div id="public-logout-container" class="mt-6 text-center">
+                    <button id="public-logout" class="btn-primary">
+                        <i class="fas fa-sign-out-alt mr-2"></i> Logout
+                    </button>
+                </div>
+            </div>
+            
+            <div class="w-3/4 p-6">
+                <!-- File Complaint Tab Content -->
+                <div id="file-complaint-tab" class="public-tab-content active">
+                    <h2 class="text-2xl font-bold mb-4">File a Complaint</h2>
+                    
+                    <div class="glass-card">
+                        <form id="complaint-form">
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div class="form-floating">
+                                    <input type="text" id="complaint-bus-route" placeholder=" " required>
+                                    <label for="complaint-bus-route">Bus Route Number</label>
+                                </div>
+                                
+                                <div class="form-floating">
+                                    <input type="text" id="complaint-bus-number" placeholder=" ">
+                                    <label for="complaint-bus-number">Bus Number (if known)</label>
+                                </div>
+                                
+                                <div class="form-floating">
+                                    <input type="text" id="complaint-fare-paid" placeholder=" " required>
+                                    <label for="complaint-fare-paid">Fare Paid (Rs.)</label>
+                                </div>
+                                
+                                <div class="form-floating">
+                                    <input type="text" id="complaint-actual-fare" placeholder=" " required>
+                                    <label for="complaint-actual-fare">Expected Fare (Rs.)</label>
+                                </div>
+                                
+                                <div class="form-floating md:col-span-2">
+                                    <input type="text" id="complaint-location" placeholder=" " required>
+                                    <label for="complaint-location">Location / From - To</label>
+                                </div>
+                                
+                                <div class="form-floating md:col-span-2">
+                                    <textarea id="complaint-description" placeholder=" " style="height: 100px;" required></textarea>
+                                    <label for="complaint-description">Detailed Description</label>
+                                </div>
+                            </div>
+                            
+                            <div class="mt-6">
+                                <button type="submit" class="btn-primary w-full py-3">Submit Complaint</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+                
+                <!-- My Complaints Tab Content -->
+                <div id="my-complaints-tab" class="public-tab-content" style="display:none;">
+                    <h2 class="text-2xl font-bold mb-4">My Complaints</h2>
+                    
+                    <div class="glass-card">
+                        <div class="overflow-x-auto">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>Date</th>
+                                        <th>Bus Route</th>
+                                        <th>Issue</th>
+                                        <th>Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="my-complaints-table-body">
+                                    <tr>
+                                        <td colspan="4" class="text-center py-4">No complaints filed yet</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Driver Details Modal -->
+    <div id="driver-details-modal" class="modal">
+        <div class="modal-content glass-card">
+            <span class="close-btn">&times;</span>
+            <h2 class="text-2xl font-bold mb-4">Driver Details</h2>
+            
+            <div id="driver-details-content">
+                <div class="mb-4">
+                    <h3 class="font-bold">Personal Information</h3>
+                    <p><strong>Name:</strong> <span id="detail-driver-name">-</span></p>
+                    <p><strong>Phone:</strong> <span id="detail-driver-phone">-</span></p>
+                </div>
+                
+                <div class="mb-4">
+                    <h3 class="font-bold">Vehicle Information</h3>
+                    <p><strong>Vehicle Number:</strong> <span id="detail-vehicle-number">-</span></p>
+                    <p><strong>Model:</strong> <span id="detail-vehicle-model">-</span></p>
+                    <p><strong>Insurance Expiry:</strong> <span id="detail-insurance-expiry">-</span></p>
+                </div>
+                
+                <div class="mb-4">
+                    <h3 class="font-bold">Violation History</h3>
+                    <div id="detail-violation-history">
+                        <p class="text-center">No violation history</p>
+                    </div>
+                </div>
+                
+                <div class="mt-6">
+                    <button id="file-complaint-against-driver" class="btn-primary w-full">
+                        <i class="fas fa-exclamation-triangle mr-2"></i> File Formal Complaint
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Complaint Details Modal -->
+    <div id="complaint-details-modal" class="modal">
+        <div class="modal-content glass-card">
+            <span class="close-btn">&times;</span>
+            <h2 class="text-2xl font-bold mb-4">Complaint Details</h2>
+            
+            <div id="complaint-details-content">
+                <div class="mb-4">
+                    <p><strong>Date:</strong> <span id="detail-complaint-date">-</span></p>
+                    <p><strong>Filed By:</strong> <span id="detail-complainant">-</span></p>
+                    <p><strong>Phone:</strong> <span id="detail-complainant-phone">-</span></p>
+                </div>
+                
+                <div class="mb-4">
+                    <p><strong>Bus Route:</strong> <span id="detail-bus-route">-</span></p>
+                    <p><strong>Bus Number:</strong> <span id="detail-bus-number">-</span></p>
+                    <p><strong>Location:</strong> <span id="detail-complaint-location">-</span></p>
+                </div>
+                
+                <div class="mb-4">
+                    <p><strong>Fare Paid:</strong> Rs. <span id="detail-fare-paid">-</span></p>
+                    <p><strong>Expected Fare:</strong> Rs. <span id="detail-actual-fare">-</span></p>
+                    <p><strong>Difference:</strong> Rs. <span id="detail-fare-difference">-</span></p>
+                </div>
+                
+                <div class="mb-4">
+                    <h3 class="font-bold">Description</h3>
+                    <p id="detail-complaint-description">-</p>
+                </div>
+                
+                <div class="mt-6 flex space-x-4">
+                    <button id="resolve-complaint" class="btn-primary flex-1">
+                        <i class="fas fa-check-circle mr-2"></i> Mark as Resolved
+                    </button>
+                    <button id="reject-complaint" class="btn-secondary flex-1">
+                        <i class="fas fa-times-circle mr-2"></i> Reject Complaint
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Violation Alert -->
+    <div id="violation-alert" class="violation-alert">
+        <div class="glass-card">
+            <div class="text-center mb-4">
+                <i class="fas fa-exclamation-triangle text-5xl text-red-500"></i>
+                <h2 class="text-2xl font-bold mt-2">Noise Violation Detected!</h2>
+                <p class="mt-1">You have entered a noise-sensitive zone</p>
+            </div>
+            
+            <div class="bg-white rounded-lg p-4 mb-4">
+                <div class="flex justify-between items-center">
+                    <div>
+                        <p class="text-sm text-gray-500">Current Noise Level</p>
+                        <p class="text-2xl font-bold" id="violation-db-level">85 dB</p>
+                    </div>
+                    <div>
+                        <p class="text-sm text-gray-500">Zone Type</p>
+                        <p class="text-2xl font-bold" id="violation-zone-type">Hospital</p>
+                    </div>
+                    <div>
+                        <p class="text-sm text-gray-500">Fine Amount</p>
+                        <p class="text-2xl font-bold" id="violation-fine-amount">₹500</p>
+                    </div>
+                </div>
+            </div>
+            
+            <p class="mb-4">Please reduce your noise level immediately and follow the suggested alternate route.</p>
+            
+            <div class="flex space-x-4">
+                <button id="pay-fine-btn" class="btn-primary flex-1">
+                    <i class="fas fa-money-bill-wave mr-2"></i> Pay Fine Now
+                </button>
+                <button id="show-alt-route-btn" class="btn-secondary flex-1">
+                    <i class="fas fa-route mr-2"></i> Show Alternate Route
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Payment Modal -->
+    <div id="payment-modal" class="modal">
+        <div class="modal-content glass-card">
+            <span class="close-btn">&times;</span>
+            <h2 class="text-2xl font-bold mb-4 text-center">Pay Violation Fine</h2>
+            
+            <div id="payment-details" class="mb-6">
+                <div class="bg-white rounded-lg p-4">
+                    <p><strong>Violation:</strong> <span id="payment-violation-type">Noise Violation</span></p>
+                    <p><strong>Location:</strong> <span id="payment-location">Hospital Zone</span></p>
+                    <p><strong>Date & Time:</strong> <span id="payment-datetime">June 15, 2025, 10:30 AM</span></p>
+                    <p><strong>Fine Amount:</strong> <span id="payment-amount">₹500</span></p>
+                </div>
+            </div>
+            
+            <h3 class="font-bold mb-2">Select Payment Method</h3>
+            
+            <div class="payment-methods">
+                <div class="payment-method" data-method="netbanking">
+                    <i class="fas fa-university"></i>
+                    <p>Net Banking</p>
+                </div>
+                <div class="payment-method" data-method="card">
+                    <i class="fas fa-credit-card"></i>
+                    <p>Credit/Debit Card</p>
+                </div>
+                <div class="payment-method" data-method="upi">
+                    <i class="fas fa-mobile-alt"></i>
+                    <p>UPI</p>
+                </div>
+            </div>
+            
+            <div id="netbanking-form" class="payment-form" style="display: none;">
+                <div class="form-floating mb-4">
+                    <select id="bank-select" placeholder=" ">
+                        <option value="">Select Bank</option>
+                        <option value="sbi">State Bank of India</option>
+                        <option value="icici">ICICI Bank</option>
+                        <option value="hdfc">HDFC Bank</option>
+                        <option value="axis">Axis Bank</option>
+                        <option value="pnb">Punjab National Bank</option>
+                    </select>
+                    <label for="bank-select">Select Bank</label>
+                </div>
+                
+                <div class="form-floating mb-4">
+                    <input type="text" id="account-number" placeholder=" ">
+                    <label for="account-number">Account Number</label>
+                </div>
+                
+                <div class="form-floating mb-4">
+                    <input type="password" id="bank-password" placeholder=" ">
+                    <label for="bank-password">Password</label>
+                </div>
+            </div>
+            
+            <div id="card-form" class="payment-form" style="display: none;">
+                <div class="form-floating mb-4">
+                    <input type="text" id="card-number" placeholder=" ">
+                    <label for="card-number">Card Number</label>
+                </div>
+                
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="form-floating mb-4">
+                        <input type="text" id="card-expiry" placeholder=" ">
+                        <label for="card-expiry">Expiry (MM/YY)</label>
+                    </div>
+                    
+                    <div class="form-floating mb-4">
+                        <input type="password" id="card-cvv" placeholder=" ">
+                        <label for="card-cvv">CVV</label>
+                    </div>
+                </div>
+                
+                <div class="form-floating mb-4">
+                    <input type="text" id="card-name" placeholder=" ">
+                    <label for="card-name">Name on Card</label>
+                </div>
+            </div>
+            
+            <div id="upi-form" class="payment-form" style="display: none;">
+                <div class="form-floating mb-4">
+                    <input type="text" id="upi-id" placeholder=" ">
+                    <label for="upi-id">UPI ID</label>
+                </div>
+                
+                <p class="text-center mb-4">A payment request will be sent to your UPI app</p>
+            </div>
+            
+            <div class="mt-6">
+                <button id="process-payment-btn" class="btn-primary w-full">Pay Now</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Receipt Modal -->
+    <div id="receipt-modal" class="modal">
+        <div class="modal-content" style="max-width: 400px;">
+            <span class="close-btn">&times;</span>
+            
+            <div class="receipt">
+                <div class="receipt-header">
+                    <h2 class="text-2xl font-bold">Roar2Rest</h2>
+                    <p>Payment Receipt</p>
+                </div>
+                
+                <div class="receipt-body">
+                    <div class="receipt-row">
+                        <span>Receipt No:</span>
+                        <span id="receipt-number">R2R2505001</span>
+                    </div>
+                    <div class="receipt-row">
+                        <span>Date & Time:</span>
+                        <span id="receipt-datetime">June 15, 2025, 10:35 AM</span>
+                    </div>
+                    <div class="receipt-row">
+                        <span>Violation Type:</span>
+                        <span id="receipt-violation-type">Noise Violation</span>
+                    </div>
+                    <div class="receipt-row">
+                        <span>Location:</span>
+                        <span id="receipt-location">Hospital Zone</span>
+                    </div>
+                    <div class="receipt-row">
+                        <span>Vehicle Number:</span>
+                        <span id="receipt-vehicle-number">KA01AB1234</span>
+                    </div>
+                    <div class="receipt-row">
+                        <span>Amount Paid:</span>
+                        <span id="receipt-amount">₹500</span>
+                    </div>
+                    <div class="receipt-row">
+                        <span>Payment Method:</span>
+                        <span id="receipt-payment-method">UPI</span>
+                    </div>
+                    <div class="receipt-row">
+                        <span>Status:</span>
+                        <span class="text-green-600 font-bold">PAID</span>
+                    </div>
+                </div>
+                
+                <div class="receipt-footer">
+                    <p>Thank you for your prompt payment.</p>
+                    <p>Drive safely and follow noise regulations!</p>
+                </div>
+            </div>
+            
+            <div class="mt-4 text-center">
+                <button id="download-receipt" class="btn-primary">
+                    <i class="fas fa-download mr-2"></i> Download Receipt
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Alternate Route Modal -->
+    <div id="alt-route-modal" class="modal">
+        <div class="modal-content glass-card">
+            <span class="close-btn">&times;</span>
+            <h2 class="text-2xl font-bold mb-4 text-center">Alternate Routes Available</h2>
+            
+            <p class="mb-4">The following routes will help you avoid noise-sensitive zones:</p>
+            
+            <div class="mb-6">
+                <div class="route-option selected">
+                    <div class="route-color" style="background-color: #4285F4;"></div>
+                    <div class="flex-1">
+                        <p class="font-bold">Route 1</p>
+                        <p class="text-sm">Via: Main Road → Bypass → Destination</p>
+                        <p class="text-sm">Distance: 3.2 km • Est. Time: 12 min</p>
+                    </div>
+                </div>
+                
+                <div class="route-option">
+                    <div class="route-color" style="background-color: #34A853;"></div>
+                    <div class="flex-1">
+                        <p class="font-bold">Route 2</p>
+                        <p class="text-sm">Via: Ring Road → Market Street → Destination</p>
+                        <p class="text-sm">Distance: 3.8 km • Est. Time: 15 min</p>
+                    </div>
+                </div>
+                
+                <div class="route-option">
+                    <div class="route-color" style="background-color: #FBBC05;"></div>
+                    <div class="flex-1">
+                        <p class="font-bold">Route 3</p>
+                        <p class="text-sm">Via: Lane 5 → Industrial Area → Destination</p>
+                        <p class="text-sm">Distance: 4.5 km • Est. Time: 18 min</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="text-center">
+                <button id="apply-route-btn" class="btn-primary">
+                    <i class="fas fa-route mr-2"></i> Apply Selected Route
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Emergency Call Modal -->
+    <div id="emergency-call-modal" class="modal">
+        <div class="modal-content glass-card">
+            <span class="close-btn">&times;</span>
+            <div class="text-center">
+                <i class="fas fa-phone-alt text-5xl text-green-500 animate-pulse"></i>
+                <h2 class="text-2xl font-bold my-4" id="emergency-calling-title">Calling Ambulance...</h2>
+                <p>Please hold while we connect your call</p>
+                <p class="mt-4">Your current location is being shared</p>
+                
+                <div class="mt-6">
+                    <button id="end-emergency-call" class="btn-secondary">
+                        <i class="fas fa-phone-slash mr-2"></i> End Call
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script id="app-script">
+        // Initialize app state
+        const appState = {
+            currentUser: null,
+            userType: null,
+            isLoggedIn: false,
+            noiseLevel: 45,
+            isMonitoring: false,
+            pendingFines: [],
+            paymentHistory: [],
+            publicComplaints: [],
+            prohibitedZones: [
+                { name: "City Hospital", type: "Hospital", lat: 12.9716, lng: 77.5946, radius: 300 },
+                { name: "St. Mary's School", type: "School", lat: 12.9815, lng: 77.6094, radius: 200 },
+                { name: "Sri Venkateswara Temple", type: "Temple", lat: 12.9542, lng: 77.6078, radius: 150 },
+                { name: "Public Library", type: "Library", lat: 12.9647, lng: 77.5963, radius: 100 }
+            ],
+            currentLocation: { lat: 12.9716, lng: 77.5946 },
+            activeViolation: null,
+            driverVehicles: {},
+            selectedPaymentMethod: null,
+            selectedRoute: 0,
+            emergencyType: null
+        };
+        
+        // DOM Elements
+        const loginSection = document.getElementById('login-section');
+        const driverDashboard = document.getElementById('driver-dashboard');
+        const policeDashboard = document.getElementById('police-dashboard');
+        const publicDashboard = document.getElementById('public-dashboard');
+        const registrationModal = document.getElementById('registration-modal');
+        const map = document.getElementById('map');
+        const violationAlert = document.getElementById('violation-alert');
+        const paymentModal = document.getElementById('payment-modal');
+        const receiptModal = document.getElementById('receipt-modal');
+        const altRouteModal = document.getElementById('alt-route-modal');
+        const emergencyCallModal = document.getElementById('emergency-call-modal');
+        
+        // Initialize the application
+        document.addEventListener('DOMContentLoaded', function() {
+            initTabs();
+            initLoginForms();
+            initRegistrationForm();
+            setupSidebarCards();
+            setupPaymentMethodSelection();
+            setupDriverDashboard();
+            setupPoliceDashboard();
+            setupPublicDashboard();
+            setupModalCloseBtns();
+            initializeLocalStorage();
+            
+            // Check if user is already logged in (from localStorage)
+            checkLoggedInUser();
+        });
+        
+        // Initialize LocalStorage with default values if empty
+        function initializeLocalStorage() {
+            if (!localStorage.getItem('users')) {
+                // Create default users for testing
+                const defaultUsers = {
+                    'driver1': {
+                        username: 'driver1',
+                        password: 'password123',
+                        type: 'driver',
+                        fullName: 'John Driver',
+                        phone: '9876543210',
+                        vehicle: {
+                            number: 'KA01AB1234',
+                            model: 'Toyota Innova',
+                            insuranceExpiry: '2026-03-15',
+                            fuelLevel: 75
+                        }
+                    },
+                    'police1': {
+                        username: 'police1',
+                        password: 'police123',
+                        type: 'police',
+                        fullName: 'Officer Kumar',
+                        phone: '9876543211',
+                        badgeId: 'PB12345',
+                        station: 'Central Police Station'
+                    },
+                    'user1': {
+                        username: 'user1',
+                        password: 'user123',
+                        type: 'public',
+                        fullName: 'Citizen Rahul',
+                        phone: '9876543212'
+                    }
+                };
+                localStorage.setItem('users', JSON.stringify(defaultUsers));
+            }
+            
+            if (!localStorage.getItem('fines')) {
+                localStorage.setItem('fines', JSON.stringify([]));
+            }
+            
+            if (!localStorage.getItem('complaints')) {
+                localStorage.setItem('complaints', JSON.stringify([]));
+            }
+        }
+        
+        // Check if user is already logged in from localStorage
+        function checkLoggedInUser() {
+            const savedUser = localStorage.getItem('currentUser');
+            if (savedUser) {
+                const user = JSON.parse(savedUser);
+                appState.currentUser = user.username;
+                appState.userType = user.type;
+                appState.isLoggedIn = true;
+                
+                // Navigate to appropriate dashboard
+                navigateToDashboard(user.type);
+            }
+        }
+        
+        // Initialize login/register tabs
+        function initTabs() {
+            // Login tabs
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.addEventListener('click', function() {
+                    const tabId = this.dataset.tab;
+                    if (tabId) {
+                        // Login tabs
+                        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+                        
+                        this.classList.add('active');
+                        document.getElementById(tabId).classList.add('active');
+                        document.getElementById(tabId).style.display = 'block';
+                    } else if (this.dataset.policeTab) {
+                        // Police dashboard tabs
+                        document.querySelectorAll('[data-police-tab]').forEach(t => t.classList.remove('active'));
+                        document.querySelectorAll('.police-tab-content').forEach(c => c.style.display = 'none');
+                        
+                        this.classList.add('active');
+                        document.getElementById(this.dataset.policeTab + '-tab').style.display = 'block';
+                    } else if (this.dataset.publicTab) {
+                        // Public dashboard tabs
+                        document.querySelectorAll('[data-public-tab]').forEach(t => t.classList.remove('active'));
+                        document.querySelectorAll('.public-tab-content').forEach(c => c.style.display = 'none');
+                        
+                        this.classList.add('active');
+                        document.getElementById(this.dataset.publicTab + '-tab').style.display = 'block';
+                    }
+                });
+            });
+        }
+        
+        // Initialize login forms
+        function initLoginForms() {
+            // Driver login form
+            document.getElementById('driver-login-form').addEventListener('submit', function(e) {
+                e.preventDefault();
+                
+                const username = document.getElementById('driver-username').value;
+                const password = document.getElementById('driver-password').value;
+                
+                authenticateUser(username, password, 'driver');
+            });
+            
+            // Police login form
+            document.getElementById('police-login-form').addEventListener('submit', function(e) {
+                e.preventDefault();
+                
+                const username = document.getElementById('police-username').value;
+                const password = document.getElementById('police-password').value;
+                
+                authenticateUser(username, password, 'police');
+            });
+            
+            // Public login form
+            document.getElementById('public-login-form').addEventListener('submit', function(e) {
+                e.preventDefault();
+                
+                const username = document.getElementById('public-username').value;
+                const password = document.getElementById('public-password').value;
+                
+                authenticateUser(username, password, 'public');
+            });
+            
+            // Register links
+            document.querySelectorAll('.register-link').forEach(link => {
+                link.addEventListener('click', function() {
+                    const registerType = this.dataset.register;
+                    openRegistrationModal(registerType);
+                });
+            });
+            
+            // Logout buttons
+            document.getElementById('driver-logout').addEventListener('click', logout);
+            document.getElementById('police-logout').addEventListener('click', logout);
+            document.getElementById('public-logout').addEventListener('click', logout);
+        }
+        
+        // Authenticate user
+        function authenticateUser(username, password, expectedType) {
+            const users = JSON.parse(localStorage.getItem('users') || '{}');
+            const user = users[username];
+            
+            let errorElement;
+            switch(expectedType) {
+                case 'driver': errorElement = document.getElementById('driver-login-error'); break;
+                case 'police': errorElement = document.getElementById('police-login-error'); break;
+                case 'public': errorElement = document.getElementById('public-login-error'); break;
+            }
+            
+            if (user && user.password === password && user.type === expectedType) {
+                // Successful login
+                appState.currentUser = username;
+                appState.userType = expectedType;
+                appState.isLoggedIn = true;
+                
+                // Save to localStorage
+                localStorage.setItem('currentUser', JSON.stringify({
+                    username: username,
+                    type: expectedType
+                }));
+                
+                // Navigate to appropriate dashboard
+                navigateToDashboard(expectedType);
+            } else {
+                // Failed login
+                errorElement.style.display = 'block';
+                errorElement.textContent = user ? 
+                    (user.type !== expectedType ? 'Invalid credentials for this user type' : 'Incorrect password') : 
+                    'Username not found';
+                
+                setTimeout(() => {
+                    errorElement.style.display = 'none';
+                }, 3000);
+            }
+        }
+        
+        // Navigate to appropriate dashboard
+        function navigateToDashboard(userType) {
+            loginSection.style.display = 'none';
+            driverDashboard.style.display = 'none';
+            policeDashboard.style.display = 'none';
+            publicDashboard.style.display = 'none';
+            
+            switch(userType) {
+                case 'driver':
+                    driverDashboard.style.display = 'block';
+                    populateDriverDashboard();
+                    initMap();
+                    break;
+                case 'police':
+                    policeDashboard.style.display = 'block';
+                    populatePoliceDashboard();
+                    break;
+                case 'public':
+                    publicDashboard.style.display = 'block';
+                    populatePublicDashboard();
+                    break;
+            }
+        }
+        
+        // Logout function
+        function logout() {
+            appState.currentUser = null;
+            appState.userType = null;
+            appState.isLoggedIn = false;
+            
+            // Remove from localStorage
+            localStorage.removeItem('currentUser');
+            
+            // Return to login screen
+            loginSection.style.display = 'flex';
+            driverDashboard.style.display = 'none';
+            policeDashboard.style.display = 'none';
+            publicDashboard.style.display = 'none';
+            
+            // Reset forms
+            document.getElementById('driver-login-form').reset();
+            document.getElementById('police-login-form').reset();
+            document.getElementById('public-login-form').reset();
+        }
+        
+        // Open registration modal
+        function openRegistrationModal(registerType) {
+            document.getElementById('reg-type').value = registerType;
+            
+            // Show/hide type-specific fields
+            document.getElementById('driver-specific-fields').style.display = registerType === 'driver' ? 'block' : 'none';
+            document.getElementById('police-specific-fields').style.display = registerType === 'police' ? 'block' : 'none';
+            
+            registrationModal.style.display = 'flex';
+        }
+        
+        // Initialize registration form
+        function initRegistrationForm() {
+            document.getElementById('registration-form').addEventListener('submit', function(e) {
+                e.preventDefault();
+                
+                const registerType = document.getElementById('reg-type').value;
+                const fullName = document.getElementById('reg-fullname').value;
+                const username = document.getElementById('reg-username').value;
+                const password = document.getElementById('reg-password').value;
+                const phone = document.getElementById('reg-phone').value;
+                
+                // Create new user object
+                const newUser = {
+                    username: username,
+                    password: password,
+                    type: registerType,
+                    fullName: fullName,
+                    phone: phone
+                };
+                
+                // Add type-specific fields
+                if (registerType === 'driver') {
+                    newUser.vehicle = {
+                        number: document.getElementById('reg-vehicle-number').value,
+                        model: document.getElementById('reg-vehicle-model').value,
+                        insuranceExpiry: document.getElementById('reg-insurance-expiry').value,
+                        fuelLevel: 75 // Default value
+                    };
+                } else if (registerType === 'police') {
+                    newUser.badgeId = document.getElementById('reg-badge-id').value;
+                    newUser.station = document.getElementById('reg-station').value;
+                }
+                
+                // Get existing users
+                const users = JSON.parse(localStorage.getItem('users') || '{}');
+                
+                // Check if username already exists
+                if (users[username]) {
+                    showAlert('Username already taken. Please choose another.', 'danger');
+                    return;
+                }
+                
+                // Add new user
+                users[username] = newUser;
+                
+                // Save to localStorage
+                localStorage.setItem('users', JSON.stringify(users));
+                
+                // Close modal and show success
+                registrationModal.style.display = 'none';
+                document.getElementById('registration-form').reset();
+                showAlert('Registration successful! You can now log in.', 'success');
+            });
+        }
+        
+        // Setup sidebar cards expand/collapse
+        function setupSidebarCards() {
+            document.querySelectorAll('.sidebar-card-header').forEach(header => {
+                header.addEventListener('click', function() {
+                    const body = this.nextElementSibling;
+                    const icon = this.querySelector('i.fas.fa-chevron-down');
+                    
+                    if (body.style.display === 'block') {
+                        body.style.display = 'none';
+                        icon.style.transform = 'rotate(0deg)';
+                    } else {
+                        body.style.display = 'block';
+                        icon.style.transform = 'rotate(180deg)';
+                    }
+                });
+            });
+        }
+        
+        // Setup payment method selection
+        function setupPaymentMethodSelection() {
+            document.querySelectorAll('.payment-method').forEach(method => {
+                method.addEventListener('click', function() {
+                    const selectedMethod = this.dataset.method;
+                    
+                    // Update selected style
+                    document.querySelectorAll('.payment-method').forEach(m => {
+                        m.classList.remove('bg-white');
+                    });
+                    this.classList.add('bg-white');
+                    
+                    // Show appropriate form
+                    document.querySelectorAll('.payment-form').forEach(form => {
+                        form.style.display = 'none';
+                    });
+                    document.getElementById(selectedMethod + '-form').style.display = 'block';
+                    
+                    appState.selectedPaymentMethod = selectedMethod;
+                });
+            });
+            
+            // Process payment button
+            document.getElementById('process-payment-btn').addEventListener('click', function() {
+                if (!appState.selectedPaymentMethod) {
+                    showAlert('Please select a payment method', 'warning');
+                    return;
+                }
+                
+                // Simulate payment processing
+                showAlert('Processing payment...', 'success');
+                
+                setTimeout(() => {
+                    // Save payment to history
+                    savePaymentToHistory();
+                    
+                    // Close payment modal and show receipt
+                    paymentModal.style.display = 'none';
+                    showReceipt();
+                }, 1500);
+            });
+        }
+        
+        // Setup emergency call buttons
+        function setupDriverDashboard() {
+            // Call ambulance
+            document.getElementById('call-ambulance').addEventListener('click', function() {
+                appState.emergencyType = 'ambulance';
+                document.getElementById('emergency-calling-title').textContent = 'Calling Ambulance...';
+                emergencyCallModal.style.display = 'flex';
+                
+                // Simulate call connection
+                setTimeout(() => {
+                    showAlert('Connected to emergency services', 'success');
+                }, 2000);
+            });
+            
+            // Call mechanic
+            document.getElementById('call-mechanic').addEventListener('click', function() {
+                appState.emergencyType = 'mechanic';
+                document.getElementById('emergency-calling-title').textContent = 'Calling Mechanic...';
+                emergencyCallModal.style.display = 'flex';
+                
+                // Simulate call connection
+                setTimeout(() => {
+                    showAlert('Connected to roadside assistance', 'success');
+                }, 2000);
+            });
+            
+            // End emergency call
+            document.getElementById('end-emergency-call').addEventListener('click', function() {
+                emergencyCallModal.style.display = 'none';
+                showAlert(`${appState.emergencyType === 'ambulance' ? 'Emergency' : 'Roadside assistance'} call ended`, 'success');
+            });
+            
+            // Start noise monitoring
+            document.getElementById('start-noise-monitor').addEventListener('click', function() {
+                if (appState.isMonitoring) {
+                    this.innerHTML = '<i class="fas fa-microphone mr-2"></i> Start Monitoring';
+                    appState.isMonitoring = false;
+                    showAlert('Noise monitoring stopped', 'success');
+                } else {
+                    this.innerHTML = '<i class="fas fa-microphone-slash mr-2"></i> Stop Monitoring';
+                    appState.isMonitoring = true;
+                    showAlert('Noise monitoring started', 'success');
+                    
+                    // Simulate noise monitoring
+                    startNoiseSimulation();
+                }
+            });
+            
+            // Pay fine button
+            document.getElementById('pay-fine-btn').addEventListener('click', function() {
+                violationAlert.style.display = 'none';
+                showPaymentModal();
+            });
+            
+            // Show alternative route button
+            document.getElementById('show-alt-route-btn').addEventListener('click', function() {
+                violationAlert.style.display = 'none';
+                altRouteModal.style.display = 'flex';
+            });
+            
+            // Apply selected route
+            document.getElementById('apply-route-btn').addEventListener('click', function() {
+                altRouteModal.style.display = 'none';
+                
+                // Get selected route
+                const selectedRoute = document.querySelector('.route-option.selected');
+                const routeIndex = Array.from(selectedRoute.parentElement.children).indexOf(selectedRoute);
+                
+                // Apply route on map
+                applyAlternateRoute(routeIndex);
+                
+                showAlert('Alternative route applied to map', 'success');
+            });
+            
+            // Route option selection
+            document.querySelectorAll('.route-option').forEach(option => {
+                option.addEventListener('click', function() {
+                    document.querySelectorAll('.route-option').forEach(o => o.classList.remove('selected'));
+                    this.classList.add('selected');
+                });
+            });
+        }
+        
+        // Setup police dashboard
+        function setupPoliceDashboard() {
+            // Police dashboard tab functionality already handled in initTabs
+            
+            // Setup resolve complaint button
+            document.getElementById('resolve-complaint').addEventListener('click', function() {
+                const complaintId = this.dataset.complaintId;
+                if (complaintId) {
+                    updateComplaintStatus(complaintId, 'resolved');
+                    document.getElementById('complaint-details-modal').style.display = 'none';
+                    populatePoliceDashboard();
+                    showAlert('Complaint marked as resolved', 'success');
+                }
+            });
+            
+            // Setup reject complaint button
+            document.getElementById('reject-complaint').addEventListener('click', function() {
+                const complaintId = this.dataset.complaintId;
+                if (complaintId) {
+                    updateComplaintStatus(complaintId, 'rejected');
+                    document.getElementById('complaint-details-modal').style.display = 'none';
+                    populatePoliceDashboard();
+                    showAlert('Complaint rejected', 'success');
+                }
+            });
+            
+            // File complaint against driver
+            document.getElementById('file-complaint-against-driver').addEventListener('click', function() {
+                const driverId = this.dataset.driverId;
+                if (driverId) {
+                    showAlert('Formal complaint filed against driver', 'success');
+                    document.getElementById('driver-details-modal').style.display = 'none';
+                }
+            });
+        }
+        
+        // Setup public dashboard
+        function setupPublicDashboard() {
+            // Public complaint form submission
+            document.getElementById('complaint-form').addEventListener('submit', function(e) {
+                e.preventDefault();
+                
+                // Get form values
+                const busRoute = document.getElementById('complaint-bus-route').value;
+                const busNumber = document.getElementById('complaint-bus-number').value;
+                const farePaid = document.getElementById('complaint-fare-paid').value;
+                const actualFare = document.getElementById('complaint-actual-fare').value;
+                const location = document.getElementById('complaint-location').value;
+                const description = document.getElementById('complaint-description').value;
+                
+                // Create complaint object
+                const newComplaint = {
+                    id: 'C' + Date.now(),
+                    date: new Date().toISOString(),
+                    complainant: appState.currentUser,
+                    busRoute: busRoute,
+                    busNumber: busNumber || 'Not provided',
+                    farePaid: farePaid,
+                    actualFare: actualFare,
+                    location: location,
+                    description: description,
+                    status: 'pending'
+                };
+                
+                // Add to complaints
+                const complaints = JSON.parse(localStorage.getItem('complaints') || '[]');
+                complaints.push(newComplaint);
+                localStorage.setItem('complaints', JSON.stringify(complaints));
+                
+                // Reset form and show success
+                this.reset();
+                showAlert('Complaint submitted successfully', 'success');
+                
+                // Refresh public dashboard
+                populatePublicDashboard();
+            });
+        }
+        
+        // Close buttons for all modals
+        function setupModalCloseBtns() {
+            document.querySelectorAll('.close-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    this.closest('.modal').style.display = 'none';
+                });
+            });
+            
+            // Close modals when clicking outside
+            document.querySelectorAll('.modal').forEach(modal => {
+                modal.addEventListener('click', function(e) {
+                    if (e.target === this) {
+                        this.style.display = 'none';
+                    }
+                });
+            });
+        }
+        
+        // Initialize map
+        function initMap() {
+            if (!map._leaflet) {
+                // Initialize Leaflet map
+                const leafletMap = L.map('map').setView([12.9716, 77.5946], 14);
+                
+                // Add tile layer
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                }).addTo(leafletMap);
+                
+                // Add prohibited zones
+                appState.prohibitedZones.forEach(zone => {
+                    const circle = L.circle([zone.lat, zone.lng], {
+                        color: 'red',
+                        fillColor: '#f03',
+                        fillOpacity: 0.2,
+                        radius: zone.radius
+                    }).addTo(leafletMap);
+                    
+                    circle.bindPopup(`<b>${zone.name}</b><br>Noise-Sensitive Zone<br>Type: ${zone.type}`);
+                    
+                    // Add zone marker
+                    const zoneIcon = L.divIcon({
+                        html: `<i class="fas fa-${zone.type === 'Hospital' ? 'hospital' : zone.type === 'School' ? 'school' : 'place-of-worship'}" style="color: red; font-size: 20px;"></i>`,
+                        className: 'zone-icon',
+                        iconSize: [30, 30]
+                    });
+                    
+                    L.marker([zone.lat, zone.lng], { icon: zoneIcon }).addTo(leafletMap)
+                        .bindPopup(`<b>${zone.name}</b><br>Noise-Sensitive Zone`);
+                });
+                
+                // Add vehicle marker
+                const carIcon = L.divIcon({
+                    html: '<i class="fas fa-car text-blue-700" style="font-size: 24px;"></i>',
+                    className: 'car-icon',
+                    iconSize: [30, 30]
+                });
+                
+                const vehicleMarker = L.marker([12.9716, 77.5946], { icon: carIcon }).addTo(leafletMap);
+                
+                // Simulate vehicle movement
+                let isInNoiseZone = false;
+                
+                const moveVehicle = () => {
+                    // Simulate vehicle movement
+                    const lat = appState.currentLocation.lat + (Math.random() - 0.5) * 0.001;
+                    const lng = appState.currentLocation.lng + (Math.random() - 0.5) * 0.001;
+                    
+                    appState.currentLocation = { lat, lng };
+                    vehicleMarker.setLatLng([lat, lng]);
+                    
+                    // Check if vehicle is in prohibited zone
+                    const inZone = appState.prohibitedZones.find(zone => {
+                        const distance = leafletMap.distance([lat, lng], [zone.lat, zone.lng]);
+                        return distance < zone.radius;
+                    });
+                    
+                    if (inZone && !isInNoiseZone && appState.isMonitoring && appState.noiseLevel > 70) {
+                        isInNoiseZone = true;
+                        triggerViolationAlert(inZone);
+                    } else if (!inZone) {
+                        isInNoiseZone = false;
+                    }
+                };
+                
+                setInterval(moveVehicle, 3000);
+            }
+        }
+        
+        // Simulate noise monitoring
+        function startNoiseSimulation() {
+            const noiseChart = document.getElementById('noise-chart');
+            
+            // Create Chart.js chart
+            if (!noiseChart.chart) {
+                const ctx = noiseChart.getContext('2d');
+                noiseChart.chart = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: Array(30).fill(''),
+                        datasets: [{
+                            label: 'Noise Level (dB)',
+                            data: Array(30).fill(45),
+                            borderColor: 'rgba(255, 165, 0, 1)',
+                            borderWidth: 2,
+                            fill: false,
+                            tension: 0.4
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        scales: {
+                            y: {
+                                beginAtZero: false,
+                                min: 30,
+                                max: 120
+                            }
+                        },
+                        animation: {
+                            duration: 0
+                        }
+                    }
+                });
+            }
+            
+            // Update noise level periodically
+            if (appState.noiseInterval) clearInterval(appState.noiseInterval);
+            
+            appState.noiseInterval = setInterval(() => {
+                if (!appState.isMonitoring) {
+                    clearInterval(appState.noiseInterval);
+                    return;
+                }
+                
+                // Random noise level between 40-100 dB
+                let newLevel;
+                
+                // Occasionally spike the noise level
+                if (Math.random() < 0.1) {
+                    newLevel = Math.floor(Math.random() * 30) + 70; // 70-100 dB (loud)
+                } else {
+                    newLevel = Math.floor(Math.random() * 30) + 40; // 40-70 dB (normal)
+                }
+                
+                appState.noiseLevel = newLevel;
+                
+                // Update UI
+                const dbMarker = document.querySelector('.db-marker');
+                const dbValue = document.querySelector('.db-value');
+                
+                const percent = (newLevel - 30) / 90 * 100; // Convert dB to percentage position
+                dbMarker.style.left = `${percent}%`;
+                dbValue.style.left = `${percent}%`;
+                dbValue.textContent = `${newLevel} dB`;
+                
+                // Update chart
+                const chart = noiseChart.chart;
+                chart.data.datasets[0].data.shift();
+                chart.data.datasets[0].data.push(newLevel);
+                chart.update();
+            }, 1000);
+        }
+        
+        // Trigger violation alert
+        function triggerViolationAlert(zone) {
+            // Set violation details
+            document.getElementById('violation-db-level').textContent = `${appState.noiseLevel} dB`;
+            document.getElementById('violation-zone-type').textContent = zone.type;
+            document.getElementById('violation-fine-amount').textContent = '₹500';
+            
+            // Create violation object
+            appState.activeViolation = {
+                id: 'V' + Date.now(),
+                date: new Date().toISOString(),
+                driver: appState.currentUser,
+                zone: zone.name,
+                zoneType: zone.type,
+                noiseLevel: appState.noiseLevel,
+                location: `${zone.lat.toFixed(4)}, ${zone.lng.toFixed(4)}`,
+                fineAmount: 500
+            };
+            
+            // Show violation alert
+            violationAlert.style.display = 'block';
+            
+            // Add to pending fines if not paid
+            const fines = JSON.parse(localStorage.getItem('fines') || '[]');
+            fines.push({
+                ...appState.activeViolation,
+                status: 'unpaid'
+            });
+            localStorage.setItem('fines', JSON.stringify(fines));
+            
+            // Update driver dashboard
+            populateDriverDashboard();
+        }
+        
+        // Show payment modal
+        function showPaymentModal() {
+            if (!appState.activeViolation) return;
+            
+            const date = new Date(appState.activeViolation.date);
+            const formattedDate = `${date.toLocaleDateString()}, ${date.toLocaleTimeString()}`;
+            
+            document.getElementById('payment-violation-type').textContent = 'Noise Violation';
+            document.getElementById('payment-location').textContent = appState.activeViolation.zone;
+            document.getElementById('payment-datetime').textContent = formattedDate;
+            document.getElementById('payment-amount').textContent = `₹${appState.activeViolation.fineAmount}`;
+            
+            paymentModal.style.display = 'flex';
+        }
+        
+        // Show receipt
+        function showReceipt() {
+            if (!appState.activeViolation) return;
+            
+            const date = new Date();
+            const formattedDate = `${date.toLocaleDateString()}, ${date.toLocaleTimeString()}`;
+            
+            document.getElementById('receipt-number').textContent = `R2R${Date.now().toString().slice(-6)}`;
+            document.getElementById('receipt-datetime').textContent = formattedDate;
+            document.getElementById('receipt-violation-type').textContent = 'Noise Violation';
+            document.getElementById('receipt-location').textContent = appState.activeViolation.zone;
+            
+            // Get driver vehicle number
+            const users = JSON.parse(localStorage.getItem('users') || '{}');
+            const driverVehicle = users[appState.currentUser]?.vehicle?.number || 'Unknown';
+            document.getElementById('receipt-vehicle-number').textContent = driverVehicle;
+            
+            document.getElementById('receipt-amount').textContent = `₹${appState.activeViolation.fineAmount}`;
+            document.getElementById('receipt-payment-method').textContent = 
+                appState.selectedPaymentMethod === 'netbanking' ? 'Net Banking' :
+                appState.selectedPaymentMethod === 'card' ? 'Credit/Debit Card' : 'UPI';
+            
+            receiptModal.style.display = 'flex';
+        }
+        
+        // Save payment to history
+        function savePaymentToHistory() {
+            if (!appState.activeViolation) return;
+            
+            // Update fine status
+            const fines = JSON.parse(localStorage.getItem('fines') || '[]');
+            const fineIndex = fines.findIndex(fine => fine.id === appState.activeViolation.id);
+            
+            if (fineIndex !== -1) {
+                fines[fineIndex].status = 'paid';
+                fines[fineIndex].paymentDate = new Date().toISOString();
+                fines[fineIndex].paymentMethod = appState.selectedPaymentMethod;
+                localStorage.setItem('fines', JSON.stringify(fines));
+            }
+            
+            // Update UI
+            populateDriverDashboard();
+            
+            // Reset active violation
+            appState.activeViolation = null;
+        }
+        
+        // Apply alternate route
+        function applyAlternateRoute(routeIndex) {
+            // In a real app, this would draw the polyline on the map
+            showAlert(`Applied route ${routeIndex + 1} to avoid noise-sensitive zone`, 'success');
+        }
+        
+        // Update complaint status
+        function updateComplaintStatus(complaintId, status) {
+            const complaints = JSON.parse(localStorage.getItem('complaints') || '[]');
+            const complaintIndex = complaints.findIndex(c => c.id === complaintId);
+            
+            if (complaintIndex !== -1) {
+                complaints[complaintIndex].status = status;
+                complaints[complaintIndex].resolvedBy = appState.currentUser;
+                complaints[complaintIndex].resolutionDate = new Date().toISOString();
+                localStorage.setItem('complaints', JSON.stringify(complaints));
+            }
+        }
+        
+        // Populate driver dashboard
+        function populateDriverDashboard() {
+            if (appState.userType !== 'driver') return;
+            
+            const users = JSON.parse(localStorage.getItem('users') || '{}');
+            const driver = users[appState.currentUser];
+            
+            if (!driver) return;
+            
+            // Welcome message
+            document.getElementById('driver-welcome').textContent = `Welcome, ${driver.fullName}`;
+            
+            // Vehicle details
+            document.getElementById('vehicle-number').textContent = driver.vehicle?.number || '-';
+            document.getElementById('vehicle-model').textContent = driver.vehicle?.model || '-';
+            document.getElementById('insurance-expiry').textContent = driver.vehicle?.insuranceExpiry || '-';
+            
+            // Fuel level
+            const fuelLevel = driver.vehicle?.fuelLevel || 75;
+            document.getElementById('fuel-level').textContent = `${fuelLevel}%`;
+            
+            const fuelBar = document.querySelector('#vehicle-details .bg-yellow-500');
+            fuelBar.style.width = `${fuelLevel}%`;
+            
+            if (fuelLevel < 20) {
+                fuelBar.classList.remove('bg-yellow-500');
+                fuelBar.classList.add('bg-red-500');
+                showAlert('Fuel level low! Please refill soon.', 'warning');
+            } else {
+                fuelBar.classList.remove('bg-red-500');
+                fuelBar.classList.add('bg-yellow-500');
+            }
+            
+            // Pending fines
+            const fines = JSON.parse(localStorage.getItem('fines') || '[]');
+            const pendingFines = fines.filter(fine => 
+                fine.driver === appState.currentUser && fine.status === 'unpaid'
+            );
+            
+            const pendingFinesList = document.getElementById('pending-fines-list');
+            
+            if (pendingFines.length === 0) {
+                pendingFinesList.innerHTML = '<p class="text-center">No pending fines</p>';
+            } else {
+                let finesHTML = '';
+                pendingFines.forEach(fine => {
+                    const date = new Date(fine.date);
+                    const formattedDate = `${date.toLocaleDateString()}`;
+                    
+                    finesHTML += `
+                        <div class="p-3 bg-white rounded-lg mb-2 shadow">
+                            <div class="flex justify-between items-center">
+                                <div>
+                                    <p class="font-bold">${fine.zoneType} Zone Violation</p>
+                                    <p class="text-sm">${formattedDate} • ${fine.zone}</p>
+                                </div>
+                                <div class="text-right">
+                                    <p class="font-bold text-red-500">₹${fine.fineAmount}</p>
+                                    <button class="btn-secondary text-xs py-1 px-2 pay-fine-btn" data-fine-id="${fine.id}">Pay Now</button>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+                
+                pendingFinesList.innerHTML = finesHTML;
+                
+                // Add event listeners for pay buttons
+                document.querySelectorAll('.pay-fine-btn').forEach(btn => {
+                    btn.addEventListener('click', function() {
+                        const fineId = this.dataset.fineId;
+                        const fine = fines.find(f => f.id === fineId);
+                        
+                        if (fine) {
+                            appState.activeViolation = fine;
+                            showPaymentModal();
+                        }
+                    });
+                });
+            }
+            
+            // Payment history
+            const paymentHistory = fines.filter(fine => 
+                fine.driver === appState.currentUser && fine.status === 'paid'
+            );
+            
+            const paymentHistoryList = document.getElementById('payment-history-list');
+            
+            if (paymentHistory.length === 0) {
+                paymentHistoryList.innerHTML = '<p class="text-center">No payment history</p>';
+            } else {
+                let historyHTML = '';
+                paymentHistory.forEach(payment => {
+                    const date = new Date(payment.paymentDate || payment.date);
+                    const formattedDate = `${date.toLocaleDateString()}`;
+                    
+                    historyHTML += `
+                        <div class="p-3 bg-white rounded-lg mb-2 shadow">
+                            <div class="flex justify-between items-center">
+                                <div>
+                                    <p class="font-bold">${payment.zoneType} Zone Violation</p>
+                                    <p class="text-sm">${formattedDate} • ${payment.zone}</p>
+                                </div>
+                                <div class="text-right">
+                                    <p class="font-bold text-green-500">₹${payment.fineAmount}</p>
+                                    <p class="text-xs">PAID</p>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+                
+                paymentHistoryList.innerHTML = historyHTML;
+            }
+        }
+        
+        // Populate police dashboard
+        function populatePoliceDashboard() {
+            if (appState.userType !== 'police') return;
+            
+            const users = JSON.parse(localStorage.getItem('users') || '{}');
+            const police = users[appState.currentUser];
+            
+            if (!police) return;
+            
+            // Welcome message
+            document.getElementById('police-welcome').textContent = `Welcome, ${police.fullName}`;
+            
+            // Unpaid violations table
+            const fines = JSON.parse(localStorage.getItem('fines') || '[]');
+            const unpaidFines = fines.filter(fine => fine.status === 'unpaid');
+            
+            const violationsTableBody = document.getElementById('violations-table-body');
+            
+            if (unpaidFines.length === 0) {
+                violationsTableBody.innerHTML = `<tr><td colspan="6" class="text-center py-4">No unpaid violations found</td></tr>`;
+            } else {
+                let violationsHTML = '';
+                unpaidFines.forEach(fine => {
+                    const date = new Date(fine.date);
+                    const formattedDate = `${date.toLocaleDateString()}`;
+                    const driver = users[fine.driver] || { fullName: 'Unknown Driver' };
+                    const vehicleNumber = driver.vehicle?.number || 'Unknown';
+                    
+                    violationsHTML += `
+                        <tr>
+                            <td>${driver.fullName}</td>
+                            <td>${vehicleNumber}</td>
+                            <td>${formattedDate}</td>
+                            <td>${fine.zone}</td>
+                            <td>₹${fine.fineAmount}</td>
+                            <td>
+                                <button class="btn-secondary text-xs py-1 px-2 view-driver-btn" data-driver="${fine.driver}">
+                                    <i class="fas fa-eye mr-1"></i> View Details
+                                </button>
+                            </td>
+                        </tr>
+                    `;
+                });
+                
+                violationsTableBody.innerHTML = violationsHTML;
+                
+                // Add event listeners for view buttons
+                document.querySelectorAll('.view-driver-btn').forEach(btn => {
+                    btn.addEventListener('click', function() {
+                        const driverId = this.dataset.driver;
+                        showDriverDetails(driverId);
+                    });
+                });
+            }
+            
+            // Public complaints table
+            const complaints = JSON.parse(localStorage.getItem('complaints') || '[]');
+            const complaintsTableBody = document.getElementById('complaints-table-body');
+            
+            if (complaints.length === 0) {
+                complaintsTableBody.innerHTML = `<tr><td colspan="6" class="text-center py-4">No complaints found</td></tr>`;
+            } else {
+                let complaintsHTML = '';
+                complaints.forEach(complaint => {
+                    const date = new Date(complaint.date);
+                    const formattedDate = `${date.toLocaleDateString()}`;
+                    const complainant = users[complaint.complainant] || { fullName: 'Unknown User' };
+                    
+                    let statusClass = '';
+                    switch (complaint.status) {
+                        case 'pending': statusClass = 'bg-yellow-100 text-yellow-800'; break;
+                        case 'resolved': statusClass = 'bg-green-100 text-green-800'; break;
+                        case 'rejected': statusClass = 'bg-red-100 text-red-800'; break;
+                    }
+                    
+                    complaintsHTML += `
+                        <tr>
+                            <td>${formattedDate}</td>
+                            <td>${complainant.fullName}</td>
+                            <td>${complaint.busRoute}</td>
+                            <td>${complaint.description.substring(0, 50)}${complaint.description.length > 50 ? '...' : ''}</td>
+                            <td><span class="px-2 py-1 rounded-full text-xs ${statusClass}">${complaint.status.toUpperCase()}</span></td>
+                            <td>
+                                <button class="btn-secondary text-xs py-1 px-2 view-complaint-btn" data-complaint="${complaint.id}">
+                                    <i class="fas fa-eye mr-1"></i> View Details
+                                </button>
+                            </td>
+                        </tr>
+                    `;
+                });
+                
+                complaintsTableBody.innerHTML = complaintsHTML;
+                
+                // Add event listeners for view buttons
+                document.querySelectorAll('.view-complaint-btn').forEach(btn => {
+                    btn.addEventListener('click', function() {
+                        const complaintId = this.dataset.complaint;
+                        showComplaintDetails(complaintId);
+                    });
+                });
+            }
+        }
+        
+        // Populate public dashboard
+        function populatePublicDashboard() {
+            if (appState.userType !== 'public') return;
+            
+            const users = JSON.parse(localStorage.getItem('users') || '{}');
+            const publicUser = users[appState.currentUser];
+            
+            if (!publicUser) return;
+            
+            // Welcome message
+            document.getElementById('public-welcome').textContent = `Welcome, ${publicUser.fullName}`;
+            
+            // My complaints table
+            const complaints = JSON.parse(localStorage.getItem('complaints') || '[]');
+            const myComplaints = complaints.filter(complaint => complaint.complainant === appState.currentUser);
+            
+            const myComplaintsTableBody = document.getElementById('my-complaints-table-body');
+            
+            if (myComplaints.length === 0) {
+                myComplaintsTableBody.innerHTML = `<tr><td colspan="4" class="text-center py-4">No complaints filed yet</td></tr>`;
+            } else {
+                let complaintsHTML = '';
+                myComplaints.forEach(complaint => {
+                    const date = new Date(complaint.date);
+                    const formattedDate = `${date.toLocaleDateString()}`;
+                    
+                    let statusClass = '';
+                    switch (complaint.status) {
+                        case 'pending': statusClass = 'bg-yellow-100 text-yellow-800'; break;
+                        case 'resolved': statusClass = 'bg-green-100 text-green-800'; break;
+                        case 'rejected': statusClass = 'bg-red-100 text-red-800'; break;
+                    }
+                    
+                    complaintsHTML += `
+                        <tr>
+                            <td>${formattedDate}</td>
+                            <td>${complaint.busRoute}</td>
+                            <td>${complaint.description.substring(0, 50)}${complaint.description.length > 50 ? '...' : ''}</td>
+                            <td><span class="px-2 py-1 rounded-full text-xs ${statusClass}">${complaint.status.toUpperCase()}</span></td>
+                        </tr>
+                    `;
+                });
+                
+                myComplaintsTableBody.innerHTML = complaintsHTML;
+            }
+        }
+        
+        // Show driver details
+        function showDriverDetails(driverId) {
+            const users = JSON.parse(localStorage.getItem('users') || '{}');
+            const driver = users[driverId];
+            
+            if (!driver) {
+                showAlert('Driver information not found', 'danger');
+                return;
+            }
+            
+            document.getElementById('detail-driver-name').textContent = driver.fullName;
+            document.getElementById('detail-driver-phone').textContent = driver.phone;
+            document.getElementById('detail-vehicle-number').textContent = driver.vehicle?.number || '-';
+            document.getElementById('detail-vehicle-model').textContent = driver.vehicle?.model || '-';
+            document.getElementById('detail-insurance-expiry').textContent = driver.vehicle?.insuranceExpiry || '-';
+            
+            // Get violation history
+            const fines = JSON.parse(localStorage.getItem('fines') || '[]');
+            const driverFines = fines.filter(fine => fine.driver === driverId);
+            
+            const violationHistory = document.getElementById('detail-violation-history');
+            
+            if (driverFines.length === 0) {
+                violationHistory.innerHTML = '<p class="text-center">No violation history</p>';
+            } else {
+                let historyHTML = '<div class="space-y-2">';
+                driverFines.forEach(fine => {
+                    const date = new Date(fine.date);
+                    const formattedDate = `${date.toLocaleDateString()}`;
+                    
+                    const statusClass = fine.status === 'paid' ? 'text-green-500' : 'text-red-500';
+                    const statusText = fine.status === 'paid' ? 'PAID' : 'UNPAID';
+                    
+                    historyHTML += `
+                        <div class="p-2 border-b">
+                            <div class="flex justify-between">
+                                <div>
+                                    <p class="font-semibold">${fine.zoneType} Zone Violation</p>
+                                    <p class="text-sm">${formattedDate} • ${fine.zone}</p>
+                                </div>
+                                <div class="text-right">
+                                    <p class="font-bold">₹${fine.fineAmount}</p>
+                                    <p class="text-xs ${statusClass}">${statusText}</p>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+                historyHTML += '</div>';
+                
+                violationHistory.innerHTML = historyHTML;
+            }
+            
+            // Set driver ID for complaint button
+            document.getElementById('file-complaint-against-driver').dataset.driverId = driverId;
+            
+            // Show modal
+            document.getElementById('driver-details-modal').style.display = 'flex';
+        }
+        
+        // Show complaint details
+        function showComplaintDetails(complaintId) {
+            const complaints = JSON.parse(localStorage.getItem('complaints') || '[]');
+            const complaint = complaints.find(c => c.id === complaintId);
+            
+            if (!complaint) {
+                showAlert('Complaint information not found', 'danger');
+                return;
+            }
+            
+            const users = JSON.parse(localStorage.getItem('users') || '{}');
+            const complainant = users[complaint.complainant] || { fullName: 'Unknown User', phone: 'Unknown' };
+            
+            const date = new Date(complaint.date);
+            const formattedDate = `${date.toLocaleDateString()}, ${date.toLocaleTimeString()}`;
+            
+            document.getElementById('detail-complaint-date').textContent = formattedDate;
+            document.getElementById('detail-complainant').textContent = complainant.fullName;
+            document.getElementById('detail-complainant-phone').textContent = complainant.phone;
+            document.getElementById('detail-bus-route').textContent = complaint.busRoute;
+            document.getElementById('detail-bus-number').textContent = complaint.busNumber;
+            document.getElementById('detail-complaint-location').textContent = complaint.location;
+            document.getElementById('detail-fare-paid').textContent = complaint.farePaid;
+            document.getElementById('detail-actual-fare').textContent = complaint.actualFare;
+            document.getElementById('detail-fare-difference').textContent = 
+                (parseInt(complaint.actualFare) - parseInt(complaint.farePaid)).toString();
+            document.getElementById('detail-complaint-description').textContent = complaint.description;
+            
+            // Set complaint ID for resolve/reject buttons
+            document.getElementById('resolve-complaint').dataset.complaintId = complaintId;
+            document.getElementById('reject-complaint').dataset.complaintId = complaintId;
+            
+            // Disable buttons if already resolved/rejected
+            if (complaint.status !== 'pending') {
+                document.getElementById('resolve-complaint').disabled = true;
+                document.getElementById('reject-complaint').disabled = true;
+                document.getElementById('resolve-complaint').classList.add('opacity-50');
+                document.getElementById('reject-complaint').classList.add('opacity-50');
+            } else {
+                document.getElementById('resolve-complaint').disabled = false;
+                document.getElementById('reject-complaint').disabled = false;
+                document.getElementById('resolve-complaint').classList.remove('opacity-50');
+                document.getElementById('reject-complaint').classList.remove('opacity-50');
+            }
+            
+            // Show modal
+            document.getElementById('complaint-details-modal').style.display = 'flex';
+        }
+        
+        // Show alert notification
+        function showAlert(message, type = 'info') {
+            // Create alert element
+            const alert = document.createElement('div');
+            alert.className = `alert alert-${type}`;
+            alert.innerHTML = `
+                <div class="flex items-center">
+                    <i class="fas fa-${type === 'success' ? 'check-circle' : type === 'danger' ? 'exclamation-circle' : type === 'warning' ? 'exclamation-triangle' : 'info-circle'} mr-2"></i>
+                    <span>${message}</span>
+                </div>
+            `;
+            
+            // Add to DOM
+            document.body.appendChild(alert);
+            
+            // Remove after animation completes
+            setTimeout(() => {
+                alert.remove();
+            }, 4000);
+        }
+    </script>
+</body>
+</html>
